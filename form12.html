@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exam Form (Focus Tracking & Auto-Submit)</title>
+    <script>
+        let maxCheatAttempts = 3;  
+        let warningThreshold = 2;  
+        let examDuration = 1 * 20; // 10 minutes (change as needed)
+        let currentExam = "exam20";  
+
+        // Reset block status if this is a new exam
+        if (localStorage.getItem("examId") !== currentExam) {
+            localStorage.removeItem("cheatCount");
+            localStorage.removeItem("blocked");
+            sessionStorage.clear();
+            localStorage.setItem("examId", currentExam);
+        }
+
+        let cheatCount = localStorage.getItem("cheatCount") ? parseInt(localStorage.getItem("cheatCount")) : 0;
+        let timeLeft = sessionStorage.getItem("timeLeft") ? parseInt(sessionStorage.getItem("timeLeft")) : examDuration;
+
+        function updateTimer() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById("timer").innerText = `⏳ Time Left: ${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+
+            if (timeLeft <= 0) {
+                alert("⏳ Time is up! Submitting your test now...");
+                submitForm();
+            } else {
+                timeLeft--;
+                sessionStorage.setItem("timeLeft", timeLeft);
+                setTimeout(updateTimer, 1000);
+            }
+        }
+
+        function submitForm() {
+            let iframe = document.getElementById("examFrame").contentWindow.document;
+
+            try {
+                let submitButton = iframe.querySelector('div[role="button"]:not([aria-disabled="true"])');
+
+                if (submitButton) {
+                    submitButton.click();
+                    alert("✅ Your exam has been submitted successfully!");
+                } else {
+                    alert("⚠ Unable to auto-submit. Please submit manually.");
+                }
+            } catch (error) {
+                alert("⚠ Google Forms blocked auto-submit. Please submit manually.");
+            }
+
+            sessionStorage.clear();
+        }
+
+        function logCheatingAttempt() {
+            cheatCount++;
+            localStorage.setItem("cheatCount", cheatCount);
+
+            console.log("User left the exam! Attempt #" + cheatCount);
+
+            if (cheatCount === warningThreshold) {
+                alert("⚠ Warning: Switching tabs is not allowed! One more attempt will reset your test.");
+            }
+
+            if (cheatCount >= maxCheatAttempts) {
+                alert("🚨 You have switched tabs too many times! You are now blocked from retaking the test.");
+                blockAccess();
+            } else {
+                resetForm();
+            }
+        }
+
+        function resetForm() {
+            sessionStorage.clear();
+            document.cookie = "";
+            window.location.reload();
+        }
+
+        function blockAccess() {
+            localStorage.setItem("blocked", "true");
+            document.body.innerHTML = "<h2 style='color:red; text-align:center;'>❌ You have been blocked from this exam due to multiple cheating attempts.</h2>";
+        }
+
+        document.addEventListener("visibilitychange", function() {
+            if (document.hidden) {
+                logCheatingAttempt();
+            }
+        });
+
+        window.onload = function() {
+            if (localStorage.getItem("blocked") === "true") {
+                blockAccess();
+            } else {
+                updateTimer();
+            }
+        };
+    </script>
+</head>
+<body>
+    <h2>Exam Form (Focus Tracking & Auto-Submit)</h2>
+    <p id="timer"><strong>⏳ Time Left: Loading...</strong></p>
+    <p><strong>Warning:</strong> Switching tabs too many times will reset your test.</p>
+    
+    <iframe id="examFrame" src="https://docs.google.com/forms/d/e/1FAIpQLSf7MH3MATd5UHbJScqQfjiTBdD3ef0P7KF__-O3GCmlN6kaDw/viewform?embedded=true" width="640" height="994" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+</body>
+</html>
